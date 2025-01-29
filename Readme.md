@@ -22,4 +22,4 @@ An AI-powered email assistant that automatically processes and responds to email
 ## Features
 - Automatic email fetching
 - AI-powered response generation
-- Background processing every 15 minutes
+- Background processing every 15 minutes# AiMail
