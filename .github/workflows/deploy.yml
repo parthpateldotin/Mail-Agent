@@ -2,8 +2,10 @@ name: Build and Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, staging, develop ]
     tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, staging ]
 
 env:
   REGISTRY: ghcr.io
@@ -18,6 +20,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
+    - name: Load deployment config
+      id: config
+      run: |
+        echo "config=$(cat .github/deployment-config.yml | yq -r tostring)" >> $GITHUB_OUTPUT
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
     - name: Log in to the Container registry
       uses: docker/login-action@v2
@@ -48,16 +58,71 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  deploy:
+  deploy-development:
     needs: build
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: development
+      url: https://dev-api.mailagent.com
 
     steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to development
+      run: |
+        # Add deployment steps for development environment
+        echo "Deploying to development environment"
+
+  deploy-staging:
+    needs: build
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging-api.mailagent.com
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to staging
+      run: |
+        # Add deployment steps for staging environment
+        echo "Deploying to staging environment"
+
+  deploy-production:
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.mailagent.com
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
     - name: Deploy to production
       run: |
-        echo "Add your deployment steps here"
-        # Example: Deploy to cloud platform
-        # - Install cloud CLI
-        # - Configure credentials
-        # - Update deployment 
+        # Add deployment steps for production environment
+        echo "Deploying to production environment" 

@@ -1,0 +1,37 @@
+# Default owners for everything in the repo
+* @parthpateldotin
+
+# Core application code
+/src/core/ @parthpateldotin
+/src/api/ @parthpateldotin
+/src/db/ @parthpateldotin
+
+# Authentication and security
+/src/core/security.py @parthpateldotin
+/src/api/v1/endpoints/auth.py @parthpateldotin
+/src/services/auth/ @parthpateldotin
+
+# AI features
+/src/services/ai/ @parthpateldotin
+/src/api/v1/endpoints/ai.py @parthpateldotin
+
+# Email services
+/src/services/email/ @parthpateldotin
+/src/api/v1/endpoints/email.py @parthpateldotin
+
+# Session management
+/src/services/session/ @parthpateldotin
+/src/api/v1/endpoints/session.py @parthpateldotin
+
+# Infrastructure and deployment
+/.github/workflows/ @parthpateldotin
+/docker/ @parthpateldotin
+*.dockerfile @parthpateldotin
+
+# Tests
+/tests/ @parthpateldotin
+/src/tests/ @parthpateldotin
+
+# Documentation
+/docs/ @parthpateldotin
+*.md @parthpateldotin 

@@ -1,0 +1,90 @@
+environments:
+  development:
+    branch: develop
+    url: https://dev-api.mailagent.com
+    variables:
+      DEBUG: true
+      ENVIRONMENT: development
+      API_PREFIX: /api/v1
+      ENABLE_DOCS: true
+      ENABLE_METRICS: true
+      RATE_LIMIT_ENABLED: true
+
+  staging:
+    branch: staging
+    url: https://staging-api.mailagent.com
+    protection_rules:
+      - required_status_checks:
+          - test
+          - security
+          - dependency-review
+      - required_pull_request_reviews: true
+    variables:
+      DEBUG: false
+      ENVIRONMENT: staging
+      API_PREFIX: /api/v1
+      ENABLE_DOCS: true
+      ENABLE_METRICS: true
+      RATE_LIMIT_ENABLED: true
+
+  production:
+    branch: main
+    url: https://api.mailagent.com
+    protection_rules:
+      - required_status_checks:
+          - test
+          - security
+          - dependency-review
+      - required_pull_request_reviews: true
+      - required_signatures: true
+      - required_linear_history: true
+      - allow_force_pushes: false
+      - allow_deletions: false
+    deployment_gates:
+      - manual_approval: true
+      - environment_checks: true
+    variables:
+      DEBUG: false
+      ENVIRONMENT: production
+      API_PREFIX: /api/v1
+      ENABLE_DOCS: false
+      ENABLE_METRICS: true
+      RATE_LIMIT_ENABLED: true
+
+branch_protection:
+  main:
+    required_status_checks:
+      strict: true
+      contexts:
+        - "test"
+        - "security"
+        - "dependency-review"
+    enforce_admins: true
+    required_pull_request_reviews:
+      required_approving_review_count: 1
+      dismiss_stale_reviews: true
+      require_code_owner_reviews: true
+    required_linear_history: true
+    allow_force_pushes: false
+    allow_deletions: false
+    required_conversation_resolution: true
+    
+  staging:
+    required_status_checks:
+      strict: true
+      contexts:
+        - "test"
+        - "security"
+    required_pull_request_reviews:
+      required_approving_review_count: 1
+      dismiss_stale_reviews: true
+    allow_force_pushes: false
+    allow_deletions: false
+
+  develop:
+    required_status_checks:
+      strict: true
+      contexts:
+        - "test"
+    required_pull_request_reviews:
+      required_approving_review_count: 1 
