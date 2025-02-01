@@ -4,11 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-.env
-.venv/
-venv/
-ENV/
-env/
 build/
 develop-eggs/
 dist/
@@ -25,6 +20,13 @@ wheels/
 .installed.cfg
 *.egg
 
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
 # IDE
 .idea/
 .vscode/
@@ -32,17 +34,46 @@ wheels/
 *.swo
 .DS_Store
 
-# Project specific
-logs/
+# Logs
 *.log
-postgres_data/
-.coverage
-htmlcov/
-.pytest_cache/
-.env
-.env.*
-!.env.example
+logs/
+log/
 
-# Docker
-.docker/
-docker-compose.override.yml
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+
+# Redis
+*.rdb
+dump.rdb
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Project specific
+.cursoragent/
+node_modules/
+
+# -----------------------------------------------------------
+# Custom logging and documentation rules for taasker:
+#
+# The following documentation and log files are generated for
+# development, architecture, and problem solving logs.
+# If you prefer to track these files, comment-out or remove the ignores.
+# -----------------------------------------------------------
+
+# Log and documentation files that might be auto-generated:
+development.md
+features.md
+architectures.md
+service_flow.md
+ideas.md
+p.tackel.md
+
+# Also ignore any ephemeral logs inside our custom .cursoragent folder
+.cursoragent/*.log

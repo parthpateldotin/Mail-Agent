@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}New Login to Your Account - {{ app_name }}{% endblock %}
+
+{% block content %}
+<h2>Hi {{ full_name }},</h2>
+
+<p>We detected a new login to your {{ app_name }} account.</p>
+
+<div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px; margin: 20px 0;">
+    <h3 style="margin-top: 0;">Login Details</h3>
+    <p><strong>Location:</strong> {{ login_location }}</p>
+    <p><strong>Device:</strong> {{ device_info }}</p>
+    <p><strong>Time:</strong> {{ now().strftime('%Y-%m-%d %H:%M:%S UTC') }}</p>
+</div>
+
+<p>
+    If this was you, you can ignore this email. If you don't recognize this login activity, 
+    please take the following steps immediately:
+</p>
+
+<ol>
+    <li>Change your password</li>
+    <li>Enable two-factor authentication if not already enabled</li>
+    <li>Review your account activity</li>
+    <li>Contact our support team</li>
+</ol>
+
+<div style="text-align: center;">
+    <a href="{{ settings_url }}" class="button">Review Security Settings</a>
+</div>
+
+<p>
+    For additional security measures, you can visit our 
+    <a href="{{ settings_url }}">security settings page</a> to:
+    <ul>
+        <li>Enable two-factor authentication</li>
+        <li>Review connected devices</li>
+        <li>Update notification preferences</li>
+    </ul>
+</p>
+
+<p>Best regards,<br>The {{ app_name }} Security Team</p>
+{% endblock %} 
