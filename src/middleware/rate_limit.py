@@ -108,28 +108,21 @@ async def rate_limit_middleware(
         rate_limit["period"]
     )
     
-    # Return rate limit headers with response
-    response = await call_next(request)
-    response.headers["X-RateLimit-Limit"] = str(rate_limit["calls"])
-    response.headers["X-RateLimit-Remaining"] = str(remaining)
-    response.headers["X-RateLimit-Reset"] = str(reset_time)
-    
     if is_limited:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded"
         )
     
+    # Return rate limit headers with response
+    response = await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(rate_limit["calls"])
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-RateLimit-Reset"] = str(reset_time)
+    
     return response
 
 
-def setup_rate_limiting(app: FastAPI, redis: Redis) -> None:
+def setup_rate_limiting(redis: Redis) -> RateLimiter:
     """Set up rate limiting for FastAPI application."""
-    # Create rate limiter instance
-    rate_limiter = RateLimiter(redis)
-    
-    # Store rate limiter in app state
-    app.state.rate_limiter = rate_limiter
-    
-    # Add middleware
-    app.middleware("http")(rate_limit_middleware) 
+    return RateLimiter(redis) 

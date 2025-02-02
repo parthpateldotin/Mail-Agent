@@ -1,134 +1,160 @@
-"""Authentication service."""
-from datetime import datetime
-from typing import Optional, Tuple
-
-from fastapi import HTTPException, status
-from sqlalchemy import select
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.security import (
-    create_access_token,
-    create_refresh_token,
-    get_password_hash,
-    verify_password,
-    verify_token
-)
+from src.core.config import get_app_settings
+from src.core.security import verify_password, get_password_hash
+from src.services.users import UserService
 from src.models.user import User
-from src.schemas.auth import Token, UserCreate, UserLogin
-from src.services.auth.token_management import blacklist_token, validate_token
 
+settings = get_app_settings()
 
-async def get_user_by_email(
-    session: AsyncSession,
-    email: str
-) -> Optional[User]:
-    """Get a user by email."""
-    result = await session.execute(
-        select(User).where(User.email == email)
-    )
-    return result.scalar_one_or_none()
+class AuthService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.user_service = UserService(session)
 
+    async def authenticate_user(self, email: str, password: str) -> Optional[User]:
+        """Authenticate user by email and password."""
+        user = await self.user_service.get_by_email(email)
+        if not user:
+            return None
+        if not verify_password(password, user.hashed_password):
+            return None
+        return user
 
-async def get_user_by_id(
-    session: AsyncSession,
-    user_id: int
-) -> Optional[User]:
-    """Get a user by ID."""
-    result = await session.execute(
-        select(User).where(User.id == user_id)
-    )
-    return result.scalar_one_or_none()
-
-
-async def create_user(
-    session: AsyncSession,
-    user_data: UserCreate
-) -> User:
-    """Create a new user."""
-    # Check if user exists
-    if await get_user_by_email(session, user_data.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+    def create_access_token(self, user_id: int, expires_delta: Optional[timedelta] = None) -> str:
+        """Create access token for user."""
+        if expires_delta:
+            expire = datetime.utcnow() + expires_delta
+        else:
+            expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+        to_encode = {
+            "exp": expire,
+            "sub": str(user_id),
+            "type": "access"
+        }
+        encoded_jwt = jwt.encode(
+            to_encode,
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM
         )
-    
-    # Create user
-    hashed_password = get_password_hash(user_data.password)
-    user = User(
-        email=user_data.email,
-        hashed_password=hashed_password,
-        is_active=True,
-        created_at=datetime.utcnow()
-    )
-    
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    
-    return user
+        return encoded_jwt
 
-
-async def authenticate_user(
-    session: AsyncSession,
-    user_data: UserLogin
-) -> Optional[User]:
-    """Authenticate a user."""
-    user = await get_user_by_email(session, user_data.email)
-    if not user:
-        return None
-    
-    if not verify_password(user_data.password, user.hashed_password):
-        return None
-    
-    return user
-
-
-async def login(
-    session: AsyncSession,
-    user_data: UserLogin
-) -> Tuple[str, str]:
-    """Login a user and return tokens."""
-    user = await authenticate_user(session, user_data)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+    def create_refresh_token(self, user_id: int) -> str:
+        """Create refresh token for user."""
+        expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        to_encode = {
+            "exp": expire,
+            "sub": str(user_id),
+            "type": "refresh"
+        }
+        encoded_jwt = jwt.encode(
+            to_encode,
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM
         )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+        return encoded_jwt
+
+    async def get_current_user(self, token: str) -> Optional[User]:
+        """Get current user from token."""
+        try:
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM]
+            )
+            user_id = int(payload["sub"])
+            if payload["type"] != "access":
+                return None
+        except (jwt.JWTError, ValueError):
+            return None
+        
+        user = await self.user_service.get_by_id(user_id)
+        if not user:
+            return None
+        if not user.is_active:
+            return None
+        return user
+
+    async def get_current_active_user(self, token: str) -> Optional[User]:
+        """Get current active user from token."""
+        current_user = await self.get_current_user(token)
+        if not current_user:
+            return None
+        if not current_user.is_active:
+            return None
+        return current_user
+
+    async def refresh_token(self, refresh_token: str) -> Optional[str]:
+        """Refresh access token using refresh token."""
+        try:
+            payload = jwt.decode(
+                refresh_token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM]
+            )
+            user_id = int(payload["sub"])
+            if payload["type"] != "refresh":
+                return None
+        except (jwt.JWTError, ValueError):
+            return None
+        
+        user = await self.user_service.get_by_id(user_id)
+        if not user or not user.is_active:
+            return None
+        
+        return self.create_access_token(user_id)
+
+    async def change_password(self, user: User, current_password: str, new_password: str) -> bool:
+        """Change user password."""
+        if not verify_password(current_password, user.hashed_password):
+            return False
+        
+        user.hashed_password = get_password_hash(new_password)
+        await self.session.commit()
+        return True
+
+    async def request_password_reset(self, email: str) -> Optional[str]:
+        """Request password reset for user."""
+        user = await self.user_service.get_by_email(email)
+        if not user:
+            return None
+        
+        # Generate password reset token
+        expire = datetime.utcnow() + timedelta(hours=24)
+        to_encode = {
+            "exp": expire,
+            "sub": str(user.id),
+            "type": "reset"
+        }
+        reset_token = jwt.encode(
+            to_encode,
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM
         )
-    
-    # Create tokens
-    access_token = create_access_token(user.id)
-    refresh_token = create_refresh_token(user.id)
-    
-    return access_token, refresh_token
+        return reset_token
 
-
-async def logout(token: str) -> bool:
-    """Logout a user by blacklisting their token."""
-    return await blacklist_token(token)
-
-
-async def refresh_token(
-    session: AsyncSession,
-    refresh_token_str: str
-) -> Optional[Token]:
-    """Create new access token using refresh token."""
-    # Validate refresh token
-    user = await validate_token(session, refresh_token_str, token_type="refresh")
-    if not user:
-        return None
-    
-    # Generate new access token
-    access_token = create_access_token(user.id)
-    
-    # Create token response
-    return Token(
-        access_token=access_token,
-        token_type="bearer",
-        refresh_token=refresh_token_str  # Keep the same refresh token
-    ) 
+    async def reset_password(self, token: str, new_password: str) -> bool:
+        """Reset user password using reset token."""
+        try:
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM]
+            )
+            user_id = int(payload["sub"])
+            if payload["type"] != "reset":
+                return False
+        except (jwt.JWTError, ValueError):
+            return False
+        
+        user = await self.user_service.get_by_id(user_id)
+        if not user:
+            return False
+        
+        user.hashed_password = get_password_hash(new_password)
+        await self.session.commit()
+        return True 

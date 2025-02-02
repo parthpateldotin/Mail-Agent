@@ -58,6 +58,7 @@ dump.rdb
 # Project specific
 .cursoragent/
 node_modules/
+a.old.tech.stack/
 
 # -----------------------------------------------------------
 # Custom logging and documentation rules for taasker:

@@ -20,7 +20,10 @@ class SessionService(LoggerMixin):
         super().__init__()
         self.redis = redis
         self.prefix = "session:"
-        self.default_expiry = timedelta(days=settings.SESSION_EXPIRY_DAYS)
+        self.cookie_name = settings.SESSION_COOKIE_NAME
+        self.expire_seconds = settings.SESSION_EXPIRE_MINUTES * 60
+        self.secure = not settings.DEBUG
+        self.same_site = "lax" if settings.DEBUG else "strict"
 
     def _get_key(self, session_id: str) -> str:
         """Get Redis key for session."""
@@ -46,7 +49,7 @@ class SessionService(LoggerMixin):
         try:
             await self.redis.setex(
                 key,
-                expiry or self.default_expiry,
+                expiry.total_seconds() if expiry else self.expire_seconds,
                 json.dumps(session_data)
             )
             
@@ -96,7 +99,7 @@ class SessionService(LoggerMixin):
             session_data["last_accessed"] = datetime.utcnow().isoformat()
             await self.redis.setex(
                 key,
-                self.default_expiry,
+                self.expire_seconds,
                 json.dumps(session_data)
             )
             
@@ -139,7 +142,7 @@ class SessionService(LoggerMixin):
             
             await self.redis.setex(
                 key,
-                self.default_expiry,
+                self.expire_seconds,
                 json.dumps(session_data)
             )
             
@@ -218,7 +221,7 @@ class SessionService(LoggerMixin):
             
             await self.redis.expire(
                 key,
-                duration or self.default_expiry
+                duration.total_seconds() if duration else self.expire_seconds
             )
             
             self.log_info(
@@ -255,9 +258,11 @@ class SessionService(LoggerMixin):
                     count=100
                 )
                 
-                for key in keys:
-                    if not await self.redis.exists(key):
-                        deleted_count += 1
+                if keys:
+                    # Delete expired keys
+                    for key in keys:
+                        if not await self.redis.exists(key):
+                            deleted_count += 1
                 
                 if cursor == 0:
                     break

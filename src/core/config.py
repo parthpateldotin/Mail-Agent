@@ -1,6 +1,8 @@
+"""Application configuration."""
+import os
 from functools import lru_cache
 from typing import List, Optional, Union, Any, Dict
-from pydantic import AnyHttpUrl, PostgresDsn, field_validator, EmailStr
+from pydantic import AnyHttpUrl, PostgresDsn, field_validator, EmailStr, computed_field, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,11 +13,12 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="allow",
     )
 
     # Project Info
     PROJECT_NAME: str = "AiMail"
-    VERSION: str = "0.1.0"
+    VERSION: str = "1.0.0"
     API_PREFIX: str = "/api/v1"
     DOCS_URL: str = "/docs"
     REDOC_URL: str = "/redoc"
@@ -24,7 +27,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Security
-    SECRET_KEY: str
+    SECRET_KEY: str = "your-secret-key-here"  # Change in production
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
@@ -37,7 +40,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "info"
     
     # CORS
-    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1"]
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    ALLOWED_HOSTS: List[str] = ["*"]
     
     @field_validator("ALLOWED_HOSTS", mode="before")
     def assemble_allowed_hosts(cls, v: Union[str, List[str]]) -> List[str]:
@@ -48,7 +52,7 @@ class Settings(BaseSettings):
                 return json.loads(v)
             except json.JSONDecodeError:
                 # If not JSON, split by comma
-                return [i.strip() for i in v.split(",")]
+                return [host.strip() for host in v.split(",")]
         return v
 
     @field_validator("ACCESS_TOKEN_EXPIRE_MINUTES", "REFRESH_TOKEN_EXPIRE_DAYS", mode="before")
@@ -60,40 +64,57 @@ class Settings(BaseSettings):
         return v
 
     # Database
-    POSTGRES_SERVER: str
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    SQLALCHEMY_DATABASE_URI: Optional[PostgresDsn] = None
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = "aimail"
+    DB_ECHO_LOG: bool = False
+    DATABASE_URI: Optional[PostgresDsn] = None
 
-    @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
-    def assemble_db_connection(cls, v: Optional[str], info) -> any:
+    @field_validator("DATABASE_URI", mode="before")
+    def assemble_db_connection(cls, v: Optional[str], info) -> str:
+        """Assemble database connection string."""
         if isinstance(v, str):
             return v
-        values = info.data
-        return PostgresDsn.build(
-            scheme="postgresql+asyncpg",
-            username=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=values.get("POSTGRES_SERVER"),
-            port=int(values.get("POSTGRES_PORT", 5432)),
-            path=f"{values.get('POSTGRES_DB') or ''}",
-        )
+        
+        host = info.data.get("POSTGRES_HOST", "localhost")
+        port = info.data.get("POSTGRES_PORT", "5432")
+        user = info.data.get("POSTGRES_USER", "postgres")
+        password = info.data.get("POSTGRES_PASSWORD", "postgres")
+        db = info.data.get("POSTGRES_DB", "aimail")
+
+        return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
     # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
     REDIS_PASSWORD: Optional[str] = None
+    REDIS_URI: Optional[RedisDsn] = None
+
+    @field_validator("REDIS_URI", mode="before")
+    def assemble_redis_connection(cls, v: Optional[str], info) -> str:
+        """Assemble Redis connection string."""
+        if isinstance(v, str):
+            return v
+        
+        host = info.data.get("REDIS_HOST", "localhost")
+        port = info.data.get("REDIS_PORT", 6379)
+        password = info.data.get("REDIS_PASSWORD")
+        db = info.data.get("REDIS_DB", 0)
+
+        if password:
+            return f"redis://:{password}@{host}:{port}/{db}"
+        return f"redis://{host}:{port}/{db}"
 
     # Email
     SMTP_TLS: bool = True
-    SMTP_PORT: Optional[int] = None
-    SMTP_HOST: Optional[str] = None
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    EMAILS_FROM_EMAIL: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAILS_FROM_EMAIL: Optional[EmailStr] = None
     EMAILS_FROM_NAME: Optional[str] = None
 
     # Features
@@ -101,9 +122,12 @@ class Settings(BaseSettings):
     ENABLE_DOCS: bool = True
 
     # Rate Limiting
-    RATE_LIMIT_ENABLED: bool = True
-    DEFAULT_RATE_LIMIT_CALLS: int = 100
-    DEFAULT_RATE_LIMIT_PERIOD: int = 60
+    RATE_LIMIT_PER_USER: int = 1000  # requests per hour
+    RATE_LIMIT_SIGNUP: str = "5/5m"  # 5 requests per 5 minutes
+    RATE_LIMIT_LOGIN: str = "5/5m"  # 5 requests per 5 minutes
+    RATE_LIMIT_PASSWORD_RESET: str = "3/15m"  # 3 requests per 15 minutes
+    RATE_LIMIT_EMAIL_VERIFY: str = "3/15m"  # 3 requests per 15 minutes
+    RATE_LIMIT_AI: str = "10/1m"  # 10 requests per minute
 
     # Email
     MAIL_USERNAME: str
@@ -112,12 +136,16 @@ class Settings(BaseSettings):
     MAIL_PORT: int
     MAIL_SERVER: str
     MAIL_FROM_NAME: str
-    FRONTEND_URL: str
+    MAIL_TLS: bool = True
+    MAIL_SSL: bool = False
+    MAIL_USE_CREDENTIALS: bool = True
+    MAIL_VALIDATE_CERTS: bool = True
+    FRONTEND_URL: AnyHttpUrl
 
     # OpenAI
-    OPENAI_API_KEY: str
-    OPENAI_MODEL: str = "gpt-4-turbo-preview"
-    OPENAI_MAX_TOKENS: int = 1000
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4"
+    OPENAI_MAX_TOKENS: int = 2000
     OPENAI_TEMPERATURE: float = 0.7
     OPENAI_RATE_LIMIT: int = 10  # requests per minute
     OPENAI_TIMEOUT: int = 30  # seconds
@@ -130,15 +158,17 @@ class Settings(BaseSettings):
     AI_PRIORITY_CLASSIFICATION: bool = True
 
     # Session Management
-    SESSION_COOKIE_NAME: str = "session_id"
-    SESSION_EXPIRY_DAYS: int = 30
+    SESSION_COOKIE_NAME: str = "aimail_session"
+    SESSION_EXPIRE_MINUTES: int = 60
     SESSION_COOKIE_SECURE: bool = True
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_CLEANUP_INTERVAL: int = 3600  # seconds
 
 
-@lru_cache()
+# Create settings instance
+settings = Settings()
+
 def get_app_settings() -> Settings:
     """Get cached application settings."""
-    return Settings() 
+    return settings 

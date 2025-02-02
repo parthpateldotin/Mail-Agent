@@ -1,10 +1,15 @@
 """Security utilities for authentication and authorization."""
 from datetime import datetime, timedelta
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
+
+from src.core.config import get_app_settings
+from src.core.exceptions import AuthenticationError
+
+settings = get_app_settings()
 
 # Password hashing configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -41,37 +46,92 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_token(subject: Union[str, Any], expires_delta: timedelta, token_type: str = "access") -> str:
-    """Create a new JWT token."""
-    expire = datetime.utcnow() + expires_delta
+def create_access_token(
+    subject: str,
+    expires_delta: Optional[timedelta] = None,
+    scopes: Optional[list[str]] = None,
+) -> str:
+    """Create access token."""
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
     
     to_encode = {
-        "sub": str(subject),
         "exp": expire,
-        "type": token_type,
-        "jti": f"{subject}_{datetime.utcnow().timestamp()}"  # unique token id
+        "sub": str(subject),
+        "type": "access"
     }
     
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    if scopes:
+        to_encode["scopes"] = scopes
+        
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
     return encoded_jwt
 
 
-def create_access_token(subject: Union[str, Any]) -> str:
-    """Create a new access token."""
-    return create_token(
-        subject=subject,
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-        token_type="access"
+def create_refresh_token(
+    subject: str,
+    expires_delta: Optional[timedelta] = None
+) -> str:
+    """Create refresh token."""
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(
+            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
+    
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "type": "refresh"
+    }
+    
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
     )
+    return encoded_jwt
 
 
-def create_refresh_token(subject: Union[str, Any]) -> str:
-    """Create a new refresh token."""
-    return create_token(
-        subject=subject,
-        expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
-        token_type="refresh"
-    )
+def decode_token(
+    token: str,
+    verify_exp: bool = True,
+    token_type: Optional[str] = None
+) -> Dict[str, Any]:
+    """Decode and verify JWT token."""
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"verify_exp": verify_exp}
+        )
+        
+        if token_type and payload.get("type") != token_type:
+            raise AuthenticationError(f"Invalid token type. Expected {token_type}")
+            
+        return payload
+    except JWTError as e:
+        raise AuthenticationError(f"Could not validate token: {str(e)}")
+
+
+def decode_access_token(token: str) -> Dict[str, Any]:
+    """Decode and verify access token."""
+    return decode_token(token, token_type="access")
+
+
+def decode_refresh_token(token: str) -> Dict[str, Any]:
+    """Decode and verify refresh token."""
+    return decode_token(token, token_type="refresh")
 
 
 def verify_token(token: str, token_type: str = "access") -> Optional[TokenData]:

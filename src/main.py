@@ -2,14 +2,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.api.v1.api import api_router
 from src.core.config import settings
 from src.db.redis import get_redis
 from src.middleware.logging import setup_logging_middleware
 from src.middleware.metrics import setup_metrics
-from src.middleware.rate_limit import setup_rate_limiting
-from src.middleware.session import setup_session_middleware
+from src.middleware.rate_limit import setup_rate_limiting, rate_limit_middleware
+from src.middleware.session import setup_session_middleware, session_middleware
 from src.services.session.session_service import SessionService
 
 
@@ -90,6 +91,18 @@ def custom_openapi():
     return app.openapi_schema
 
 
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Rate limiting middleware."""
+    async def dispatch(self, request, call_next):
+        return await rate_limit_middleware(request, call_next)
+
+
+class SessionMiddleware(BaseHTTPMiddleware):
+    """Session middleware."""
+    async def dispatch(self, request, call_next):
+        return await session_middleware(request, call_next)
+
+
 def create_application() -> FastAPI:
     """Create FastAPI application."""
     app = FastAPI(
@@ -109,6 +122,10 @@ def create_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Set up rate limiting and session middleware
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(SessionMiddleware)
     
     # Set up logging middleware
     setup_logging_middleware(app)
@@ -136,14 +153,9 @@ async def startup_event() -> None:
     redis = await anext(get_redis())
     
     # Set up rate limiting
-    setup_rate_limiting(app, redis)
+    rate_limiter = setup_rate_limiting(redis)
+    app.state.rate_limiter = rate_limiter
     
-    # Set up session middleware
+    # Set up session service
     session_service = SessionService(redis)
-    setup_session_middleware(
-        app,
-        session_service,
-        cookie_name=settings.SESSION_COOKIE_NAME,
-        secure=not settings.DEBUG,
-        same_site="lax" if settings.DEBUG else "strict"
-    ) 
+    app.state.session_service = session_service 
