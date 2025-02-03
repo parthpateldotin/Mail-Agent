@@ -4,6 +4,10 @@ import { config } from 'dotenv';
 import { EmailManager } from './services/EmailManager';
 import { AutoResponseAgent } from './services/AutoResponseAgent';
 import { SettingsManager } from './services/SettingsManager';
+import { DashboardMonitor } from './services/DashboardMonitor';
+import { HandshakeManager } from './services/HandshakeManager';
+import { DashboardController } from './controllers/DashboardController';
+import { LLMService } from './services/LLMService';
 
 // Load environment variables
 config();
@@ -16,9 +20,18 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize services
+const handshakeManager = new HandshakeManager();
 const emailManager = new EmailManager();
-const autoResponseAgent = new AutoResponseAgent(emailManager);
 const settingsManager = new SettingsManager();
+const llmService = new LLMService();
+const autoResponseAgent = new AutoResponseAgent(emailManager, settingsManager, llmService);
+const dashboardMonitor = new DashboardMonitor(handshakeManager);
+
+// Initialize controllers
+const dashboardController = new DashboardController(dashboardMonitor, handshakeManager);
+
+// Start monitoring
+dashboardMonitor.start();
 
 // Settings endpoints
 app.get('/api/settings/email', async (req, res) => {
@@ -99,11 +112,24 @@ app.post('/api/agent/stop', async (req, res) => {
 
 app.get('/api/agent/status', async (req, res) => {
   try {
-    const status = await autoResponseAgent.getStatus();
-    res.json({ isRunning: status });
+    const isRunning = autoResponseAgent.status;
+    res.json({ isRunning });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get agent status' });
   }
+});
+
+// Dashboard endpoints
+app.get('/api/dashboard/metrics', (req, res) => dashboardController.getMetrics(req, res));
+app.get('/api/dashboard/services', (req, res) => dashboardController.getServiceStatus(req, res));
+app.get('/api/dashboard/handshakes', (req, res) => dashboardController.getHandshakeHistory(req, res));
+app.get('/api/dashboard/email-metrics', (req, res) => dashboardController.getEmailMetrics(req, res));
+app.get('/api/dashboard/performance', (req, res) => dashboardController.getPerformanceMetrics(req, res));
+
+// Cleanup on server shutdown
+process.on('SIGTERM', () => {
+  dashboardMonitor.stop();
+  process.exit(0);
 });
 
 // Start server

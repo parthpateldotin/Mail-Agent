@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background-color: {{#if (eq severity 'CRITICAL')}}#ff4444{{else if (eq severity 'WARNING')}}#ffbb33{{else}}#33b5e5{{/if}};
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .content {
+      background-color: #f9f9f9;
+      padding: 20px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>System Alert: {{severity}}</h2>
+  </div>
+  
+  <div class="content">
+    <p><strong>Alert Message:</strong> {{alert.message}}</p>
+    <p><strong>Component:</strong> {{component}}</p>
+    <p><strong>Timestamp:</strong> {{timestamp}}</p>
+    
+    {{#if alert.metadata}}
+    <h3>Additional Information:</h3>
+    <ul>
+      {{#each alert.metadata}}
+      <li><strong>{{@key}}:</strong> {{this}}</li>
+      {{/each}}
+    </ul>
+    {{/if}}
+  </div>
+
+  <div class="footer">
+    <p>This is an automated message from your system monitoring service. Please do not reply to this email.</p>
+  </div>
+</body>
+</html> 

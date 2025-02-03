@@ -1,151 +1,226 @@
-import { Configuration, OpenAIApi } from 'openai';
-import { ProcessedEmail } from '../types/email';
+import OpenAI from 'openai';
+import { Logger } from '../utils/logger';
+import { EmailAnalysis, EmailResponse, ProcessedEmail } from '../types/email';
+
+interface AnalysisContext {
+  previousEmails?: ProcessedEmail[];
+  userPreferences?: {
+    workingHours: {
+      start: string;
+      end: string;
+    };
+    timezone: string;
+    meetingDuration: number;
+  };
+  meetingContext?: {
+    existingMeetings: Array<{
+      start: Date;
+      end: Date;
+      attendees: string[];
+    }>;
+    preferredTimes: string[];
+  };
+}
 
 export class LLMService {
-  private openai: OpenAIApi;
+  private openai: OpenAI;
+  private logger: Logger;
+  private context: Map<string, AnalysisContext> = new Map();
 
-  constructor() {
-    const configuration = new Configuration({
-      apiKey: process.env.OPENAI_API_KEY,
+  constructor(apiKey: string = process.env.OPENAI_API_KEY || '') {
+    this.openai = new OpenAI({ apiKey });
+    this.logger = new Logger('LLMService');
+  }
+
+  async analyzeEmail(content: string, context?: AnalysisContext): Promise<EmailAnalysis> {
+    try {
+      const systemPrompt = this.buildSystemPrompt(context);
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: this.buildAnalysisPrompt(content, context),
+          },
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      });
+
+      const analysis = response.choices[0]?.message?.content;
+      if (!analysis) {
+        throw new Error('Failed to generate analysis');
+      }
+
+      // Parse the analysis into structured format
+      const parsedAnalysis = this.parseAnalysis(analysis);
+      this.logger.info('Email analysis completed', { emailAnalysis: parsedAnalysis });
+
+      return parsedAnalysis;
+    } catch (error) {
+      this.logger.error('Failed to analyze email:', error);
+      throw error;
+    }
+  }
+
+  async generateResponse(email: ProcessedEmail): Promise<EmailResponse> {
+    try {
+      const context = this.context.get(email.id);
+      const systemPrompt = this.buildResponsePrompt(context);
+      
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: this.buildResponseContext(email),
+          },
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      });
+
+      const generatedResponse = response.choices[0]?.message?.content;
+      if (!generatedResponse) {
+        throw new Error('Failed to generate response');
+      }
+
+      // Parse the response into structured format
+      const parsedResponse = this.parseResponse(generatedResponse, email);
+      this.logger.info('Email response generated', { emailResponse: parsedResponse });
+
+      return parsedResponse;
+    } catch (error) {
+      this.logger.error('Failed to generate response:', error);
+      throw error;
+    }
+  }
+
+  private buildSystemPrompt(context?: AnalysisContext): string {
+    return `You are an AI assistant that analyzes emails with high accuracy.
+    Your task is to provide a detailed analysis in JSON format including:
+    - Summary of the email content
+    - Key points and action items
+    - Sentiment analysis
+    - Priority level
+    - Meeting requirements and scheduling needs
+    - Required attendees and context
+    
+    ${context?.userPreferences ? `Consider user preferences:
+    - Working hours: ${context.userPreferences.workingHours.start} - ${context.userPreferences.workingHours.end}
+    - Timezone: ${context.userPreferences.timezone}
+    - Preferred meeting duration: ${context.userPreferences.meetingDuration} minutes` : ''}
+    
+    ${context?.meetingContext ? `Consider existing meetings:
+    ${JSON.stringify(context.meetingContext.existingMeetings, null, 2)}` : ''}
+    
+    Provide the analysis in a structured JSON format.`;
+  }
+
+  private buildAnalysisPrompt(content: string, context?: AnalysisContext): string {
+    return `Analyze the following email content:
+    ${content}
+    
+    ${context?.previousEmails ? `Consider previous email context:
+    ${context.previousEmails.map(email => `
+    From: ${email.from}
+    Subject: ${email.subject}
+    Content: ${email.content}
+    ---`).join('\n')}` : ''}
+    
+    Provide a detailed analysis including meeting detection and scheduling requirements.`;
+  }
+
+  private buildResponsePrompt(context?: AnalysisContext): string {
+    return `You are an AI assistant that generates professional email responses.
+    Generate a response in JSON format that includes:
+    - Subject line
+    - Email body
+    - Suggested meeting times (if applicable)
+    - Required attendees
+    - Follow-up actions
+    
+    ${context?.userPreferences ? `Consider user preferences:
+    - Working hours: ${context.userPreferences.workingHours.start} - ${context.userPreferences.workingHours.end}
+    - Timezone: ${context.userPreferences.timezone}` : ''}
+    
+    The response should be professional, clear, and actionable.`;
+  }
+
+  private buildResponseContext(email: ProcessedEmail): string {
+    return JSON.stringify({
+      originalEmail: {
+        subject: email.subject,
+        content: email.content,
+        from: email.from,
+      },
+      analysis: email.analysis,
     });
-    this.openai = new OpenAIApi(configuration);
   }
 
-  async analyzeEmail(email: ProcessedEmail) {
+  private parseAnalysis(rawAnalysis: string): EmailAnalysis {
     try {
-      const prompt = `
-Analyze the following email and provide:
-1. A brief summary
-2. Key points
-3. Sentiment (positive, neutral, or negative)
-4. Priority (high, medium, or low)
-5. Suggested actions
-
-Email:
-From: ${email.from}
-Subject: ${email.subject}
-Content: ${email.content}
-`;
-
-      const response = await this.openai.createChatCompletion({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are an AI assistant specialized in analyzing emails and providing concise, actionable insights."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-      });
-
-      const analysis = response.data.choices[0]?.message?.content || '';
-      return this.parseAnalysis(analysis);
+      const parsed = JSON.parse(rawAnalysis);
+      return {
+        summary: parsed.summary,
+        key_points: parsed.key_points,
+        sentiment: parsed.sentiment,
+        priority: parsed.priority,
+        action_items: parsed.action_items,
+        category: parsed.category,
+        requiresMeeting: parsed.requires_meeting,
+        suggestedTimeRange: parsed.suggested_time_range ? {
+          start: new Date(parsed.suggested_time_range.start),
+          end: new Date(parsed.suggested_time_range.end),
+        } : undefined,
+        meetingContext: parsed.meeting_context,
+        additionalAttendees: parsed.additional_attendees,
+        confidence: parsed.confidence,
+        tags: parsed.tags,
+      };
     } catch (error) {
-      console.error('Failed to analyze email:', error);
-      throw error;
+      this.logger.error('Failed to parse analysis:', error);
+      throw new Error('Failed to parse analysis');
     }
   }
 
-  async generateResponse(email: ProcessedEmail, template?: string) {
+  private parseResponse(
+    rawResponse: string,
+    originalEmail: ProcessedEmail
+  ): EmailResponse {
     try {
-      const prompt = `
-Generate a professional email response to the following email:
-From: ${email.from}
-Subject: ${email.subject}
-Content: ${email.content}
-
-${template ? `Use this template style: ${template}` : ''}
-
-Requirements:
-1. Maintain a professional and courteous tone
-2. Address all key points from the original email
-3. Be clear and concise
-4. Include a proper greeting and signature
-5. If any action items are mentioned, acknowledge them
-`;
-
-      const response = await this.openai.createChatCompletion({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are an AI assistant specialized in writing professional email responses."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.5,
-      });
-
-      return response.data.choices[0]?.message?.content || '';
+      const parsed = JSON.parse(rawResponse);
+      return {
+        subject: parsed.subject || `Re: ${originalEmail.subject}`,
+        body: parsed.body,
+        to: [originalEmail.from],
+        cc: parsed.cc,
+        metadata: {
+          priority: originalEmail.analysis?.priority || 'normal',
+          category: originalEmail.analysis?.category || 'general',
+          responseType: parsed.response_type || 'auto-generated',
+          autoGenerated: true,
+        },
+      };
     } catch (error) {
-      console.error('Failed to generate response:', error);
-      throw error;
+      this.logger.error('Failed to parse response:', error);
+      throw new Error('Failed to parse response');
     }
   }
 
-  private parseAnalysis(analysis: string) {
-    // Extract information from the analysis text
-    const lines = analysis.split('\n');
-    let summary = '';
-    let keyPoints: string[] = [];
-    let sentiment = 'neutral';
-    let priority = 'medium';
-    let actions: string[] = [];
+  setContext(emailId: string, context: AnalysisContext): void {
+    this.context.set(emailId, context);
+  }
 
-    let currentSection = '';
-
-    for (const line of lines) {
-      if (line.toLowerCase().includes('summary:')) {
-        currentSection = 'summary';
-        continue;
-      } else if (line.toLowerCase().includes('key points:')) {
-        currentSection = 'keyPoints';
-        continue;
-      } else if (line.toLowerCase().includes('sentiment:')) {
-        currentSection = 'sentiment';
-        sentiment = line.split(':')[1]?.trim().toLowerCase() || 'neutral';
-        continue;
-      } else if (line.toLowerCase().includes('priority:')) {
-        currentSection = 'priority';
-        priority = line.split(':')[1]?.trim().toLowerCase() || 'medium';
-        continue;
-      } else if (line.toLowerCase().includes('suggested actions:')) {
-        currentSection = 'actions';
-        continue;
-      }
-
-      if (line.trim()) {
-        switch (currentSection) {
-          case 'summary':
-            summary += line.trim() + ' ';
-            break;
-          case 'keyPoints':
-            if (line.trim().startsWith('-')) {
-              keyPoints.push(line.trim().substring(1).trim());
-            }
-            break;
-          case 'actions':
-            if (line.trim().startsWith('-')) {
-              actions.push(line.trim().substring(1).trim());
-            }
-            break;
-        }
-      }
-    }
-
-    return {
-      summary: summary.trim(),
-      key_points: keyPoints,
-      sentiment,
-      priority,
-      action_items: actions,
-    };
+  clearContext(emailId: string): void {
+    this.context.delete(emailId);
   }
 } 

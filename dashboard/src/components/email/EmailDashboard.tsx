@@ -20,6 +20,7 @@ import {
   Card,
   LinearProgress,
   Chip,
+  Alert,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -52,6 +53,8 @@ interface Email {
     category: string;
     summary: string;
   };
+  error?: string;
+  retryCount?: number;
 }
 
 interface ProcessingStep {
@@ -60,6 +63,7 @@ interface ProcessingStep {
   status: 'pending' | 'processing' | 'completed' | 'error';
   details?: string;
   timestamp?: string;
+  error?: string;
 }
 
 // Mock data - replace with actual API data
@@ -115,6 +119,7 @@ const EmailDashboard: React.FC = () => {
   const [showComposeDialog, setShowComposeDialog] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [composeData, setComposeData] = useState({
     to: '',
     subject: '',
@@ -127,7 +132,7 @@ const EmailDashboard: React.FC = () => {
     }
   }, [selectedEmail]);
 
-  const simulateEmailProcessing = (emailId: number) => {
+  const simulateEmailProcessing = async (emailId: number) => {
     const steps: ProcessingStep[] = [
       { id: 'receive', label: 'Email Reception', status: 'pending' },
       { id: 'validate', label: 'Validation & Filtering', status: 'pending' },
@@ -139,42 +144,107 @@ const EmailDashboard: React.FC = () => {
     ];
 
     setProcessingSteps(steps);
-
     let currentStep = 0;
-    const interval = setInterval(() => {
-      if (currentStep < steps.length) {
-        steps[currentStep].status = 'processing';
-        if (currentStep > 0) {
-          steps[currentStep - 1].status = 'completed';
-          steps[currentStep - 1].timestamp = new Date().toLocaleTimeString();
+
+    try {
+      const processInterval = setInterval(async () => {
+        if (currentStep < steps.length) {
+          steps[currentStep].status = 'processing';
+          
+          if (currentStep > 0) {
+            steps[currentStep - 1].status = 'completed';
+            steps[currentStep - 1].timestamp = new Date().toLocaleTimeString();
+          }
+
+          // Simulate API call for each step
+          try {
+            await processStep(steps[currentStep], emailId);
+            setProcessingSteps([...steps]);
+            currentStep++;
+          } catch (error) {
+            clearInterval(processInterval);
+            handleProcessingError(error, currentStep, steps, emailId);
+          }
+        } else {
+          clearInterval(processInterval);
+          completeProcessing(steps, emailId);
         }
-        setProcessingSteps([...steps]);
-        currentStep++;
-      } else {
-        clearInterval(interval);
-        steps[steps.length - 1].status = 'completed';
-        steps[steps.length - 1].timestamp = new Date().toLocaleTimeString();
-        setProcessingSteps([...steps]);
-        
-        // Update email status
-        setEmails(prevEmails =>
-          prevEmails.map(email =>
-            email.id === emailId
-              ? {
-                  ...email,
-                  status: 'analyzed',
-                  analysis: {
-                    sentiment: 'Positive',
-                    priority: 'High',
-                    category: 'Support',
-                    summary: 'Customer requesting assistance with product setup.',
-                  },
-                }
-              : email
-          )
-        );
-      }
-    }, 2000);
+      }, 2000);
+
+      return () => clearInterval(processInterval);
+    } catch (error) {
+      handleProcessingError(error, currentStep, steps, emailId);
+    }
+  };
+
+  const processStep = async (step: ProcessingStep, emailId: number) => {
+    // Simulate API call for each step
+    const response = await fetch(`/api/process/${step.id}/${emailId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to process step ${step.id}`);
+    }
+    return response.json();
+  };
+
+  const handleProcessingError = (error: any, step: number, steps: ProcessingStep[], emailId: number) => {
+    steps[step].status = 'error';
+    steps[step].error = error.message;
+    setProcessingSteps([...steps]);
+    
+    setEmails(prevEmails =>
+      prevEmails.map(email =>
+        email.id === emailId
+          ? {
+              ...email,
+              status: 'error',
+              error: error.message,
+              retryCount: (email.retryCount || 0) + 1
+            }
+          : email
+      )
+    );
+
+    setError(`Processing failed at ${steps[step].label}: ${error.message}`);
+  };
+
+  const completeProcessing = (steps: ProcessingStep[], emailId: number) => {
+    steps[steps.length - 1].status = 'completed';
+    steps[steps.length - 1].timestamp = new Date().toLocaleTimeString();
+    setProcessingSteps([...steps]);
+    
+    setEmails(prevEmails =>
+      prevEmails.map(email =>
+        email.id === emailId
+          ? {
+              ...email,
+              status: 'analyzed',
+              analysis: {
+                sentiment: 'Positive',
+                priority: 'High',
+                category: 'Support',
+                summary: 'Customer requesting assistance with product setup.',
+              },
+            }
+          : email
+      )
+    );
+  };
+
+  const retryProcessing = async (emailId: number) => {
+    setError(null);
+    const email = emails.find(e => e.id === emailId);
+    if (email && email.retryCount && email.retryCount < 3) {
+      setEmails(prevEmails =>
+        prevEmails.map(e =>
+          e.id === emailId
+            ? { ...e, status: 'processing', error: undefined }
+            : e
+        )
+      );
+      await simulateEmailProcessing(emailId);
+    } else {
+      setError('Maximum retry attempts reached. Please contact support.');
+    }
   };
 
   const handleStarEmail = (emailId: number) => {
@@ -306,8 +376,18 @@ const EmailDashboard: React.FC = () => {
     );
   };
 
+  const renderError = () => {
+    if (!error) return null;
+    return (
+      <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+        {error}
+      </Alert>
+    );
+  };
+
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 3 }}>
+      {renderError()}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">
           Email Processing Dashboard
