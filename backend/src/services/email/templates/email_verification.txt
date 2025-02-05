@@ -1,0 +1,14 @@
+Verify Your Email
+
+Hello {{ user_name }},
+
+Thank you for signing up! To verify your email address, please visit the following link:
+
+{{ verify_url }}
+
+This link will expire on {{ expires_at }}.
+
+If you didn't create an account, you can safely ignore this email.
+
+---
+This is an automated message, please do not reply to this email. 

@@ -1,7 +1,61 @@
-# Python
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/
+.venv/
+venv/
+env/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Production
+build/
+dist/
+*.egg-info/
+
+# Development
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Database
+*.sqlite
+*.db
+
+# Temp files
+tmp/
+temp/
+
+# Python
 *.so
 .Python
 build/
@@ -21,7 +75,6 @@ wheels/
 *.egg
 
 # Node.js
-node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -30,10 +83,6 @@ yarn-error.log*
 .yarn
 .pnp.*
 .yarn-integrity
-
-# TypeScript
-*.tsbuildinfo
-.tscache/
 
 # Virtual Environment
 .env

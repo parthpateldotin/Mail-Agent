@@ -1,0 +1,20 @@
+Welcome to AiMail!
+
+Hello {{ user_name }},
+
+Thank you for joining AiMail! We're excited to have you on board.
+
+Here's what you can do with AiMail:
+✓ Smart email management powered by AI
+✓ Automatic email categorization
+✓ Intelligent spam detection
+✓ Priority inbox with smart filtering
+✓ Email scheduling and reminders
+
+Ready to get started? Visit this link to log in to your account:
+{{ login_url }}
+
+If you have any questions, our support team is here to help!
+
+---
+This is an automated message, please do not reply to this email. 
