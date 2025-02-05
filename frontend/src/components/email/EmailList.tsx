@@ -2,21 +2,21 @@ import React from 'react';
 import {
   List,
   ListItem,
-  ListItemButton,
   ListItemText,
-  Typography,
   Checkbox,
   IconButton,
+  Typography,
+  Paper,
   Box,
-  Chip
 } from '@mui/material';
 import {
   Star as StarIcon,
   StarBorder as StarBorderIcon,
-  Attachment as AttachmentIcon
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
-import { AutoSizer, List as VirtualList, ListRowProps } from 'react-virtualized';
+import { FixedSizeList, ListChildComponentProps } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import { Size } from 'react-virtualized-auto-sizer';
 
 export interface EmailItem {
   id: string;
@@ -43,7 +43,7 @@ export const EmailList: React.FC<EmailListProps> = ({
   selectedEmails,
   onEmailSelect,
   onEmailsSelect,
-  onStarEmail
+  onStarEmail,
 }) => {
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
@@ -53,122 +53,127 @@ export const EmailList: React.FC<EmailListProps> = ({
     }
   };
 
-  const renderRow = ({ index, style }: ListRowProps) => {
+  const renderRow = ({ index, style }: ListChildComponentProps) => {
     const email = emails[index];
     const isSelected = selectedEmails.includes(email.id);
 
     return (
       <ListItem
-        disablePadding
         style={style}
+        key={email.id}
+        selected={isSelected}
+        onClick={() => onEmailSelect(email.id)}
         sx={{
-          backgroundColor: isSelected ? 'action.selected' : 'background.paper',
+          cursor: 'pointer',
           '&:hover': {
-            backgroundColor: 'action.hover'
-          }
+            backgroundColor: 'action.hover',
+          },
+          opacity: email.isRead ? 0.8 : 1,
+          fontWeight: email.isRead ? 'normal' : 'bold',
         }}
       >
-        <ListItemButton onClick={() => onEmailSelect(email.id)}>
-          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-            <Checkbox
-              checked={isSelected}
-              onChange={(event) => {
-                event.stopPropagation();
-                if (event.target.checked) {
-                  onEmailsSelect([...selectedEmails, email.id]);
-                } else {
-                  onEmailsSelect(selectedEmails.filter(id => id !== email.id));
-                }
-              }}
-            />
-            <IconButton
-              size="small"
-              onClick={(event) => {
-                event.stopPropagation();
-                onStarEmail(email.id);
+        <Checkbox
+          checked={isSelected}
+          onChange={() => onEmailSelect(email.id)}
+          onClick={e => e.stopPropagation()}
+        />
+        <IconButton
+          size="small"
+          onClick={e => {
+            e.stopPropagation();
+            onStarEmail(email.id);
+          }}
+        >
+          {email.isStarred ? (
+            <StarIcon color="warning" />
+          ) : (
+            <StarBorderIcon />
+          )}
+        </IconButton>
+        <ListItemText
+          primary={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                component="span"
+                variant="body1"
+                sx={{
+                  fontWeight: email.isRead ? 'normal' : 'bold',
+                }}
+              >
+                {email.subject}
+              </Typography>
+              {email.hasAttachments && (
+                <AttachFileIcon fontSize="small" color="action" />
+              )}
+            </Box>
+          }
+          secondary={
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
               }}
             >
-              {email.isStarred ? <StarIcon color="warning" /> : <StarBorderIcon />}
-            </IconButton>
-            <Box sx={{ ml: 2, flex: 1, minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    fontWeight: email.isRead ? 'normal' : 'bold',
-                    flex: 1,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}
-                >
-                  {email.subject}
-                </Typography>
-                <Typography variant="caption" sx={{ ml: 2, whiteSpace: 'nowrap' }}>
-                  {format(email.date, 'MMM d')}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography
-                  variant="body2"
-                  color="textSecondary"
-                  sx={{
-                    flex: 1,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}
-                >
-                  {email.sender} - {email.preview}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-                  {email.hasAttachments && (
-                    <AttachmentIcon fontSize="small" color="action" sx={{ ml: 1 }} />
-                  )}
-                  {email.labels.map((label) => (
-                    <Chip
-                      key={label}
-                      label={label}
-                      size="small"
-                      sx={{ ml: 1 }}
-                    />
-                  ))}
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-        </ListItemButton>
+              <span>{`${email.sender} - ${email.preview}`}</span>
+              <span>
+                {new Date(email.date).toLocaleDateString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </Typography>
+          }
+        />
       </ListItem>
     );
   };
 
+  if (emails.length === 0) {
+    return (
+      <Paper sx={{ p: 2, textAlign: 'center' }}>
+        <Typography variant="body1" color="text.secondary">
+          No emails to display
+        </Typography>
+      </Paper>
+    );
+  }
+
   return (
-    <Box sx={{ width: '100%', height: '100%' }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+    <Box sx={{ height: 'calc(100vh - 250px)', width: '100%' }}>
+      <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
         <Checkbox
           checked={selectedEmails.length === emails.length}
-          indeterminate={selectedEmails.length > 0 && selectedEmails.length < emails.length}
+          indeterminate={
+            selectedEmails.length > 0 && selectedEmails.length < emails.length
+          }
           onChange={handleSelectAll}
         />
-        <Typography variant="subtitle1" component="span">
+        <Typography
+          component="span"
+          variant="body2"
+          color="text.secondary"
+          sx={{ ml: 1 }}
+        >
           {selectedEmails.length > 0
-            ? `Selected ${selectedEmails.length} emails`
+            ? `${selectedEmails.length} selected`
             : `${emails.length} emails`}
         </Typography>
       </Box>
-      <Box sx={{ flex: 1, height: 'calc(100% - 64px)' }}>
-        <AutoSizer>
-          {({ width, height }) => (
-            <VirtualList
-              width={width}
-              height={height}
-              rowCount={emails.length}
-              rowHeight={88}
-              rowRenderer={renderRow}
-            />
-          )}
-        </AutoSizer>
-      </Box>
+      <AutoSizer>
+        {({ height, width }: Size) => (
+          <FixedSizeList
+            height={height}
+            width={width}
+            itemCount={emails.length}
+            itemSize={72}
+          >
+            {renderRow}
+          </FixedSizeList>
+        )}
+      </AutoSizer>
     </Box>
   );
 };

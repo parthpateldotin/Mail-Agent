@@ -4,14 +4,17 @@ import { AppDataSource } from '../config/database';
 import { Settings } from '../entities/Settings';
 import { AppError } from '../utils/AppError';
 import { AIService } from '../services/ai.service';
+import { LLMService } from '../services/LLMService';
 
 export class AIController {
     private settingsRepository: Repository<Settings>;
     private aiService: AIService;
+    private llmService: LLMService;
     private initialized = false;
 
     constructor() {
         this.aiService = new AIService();
+        this.llmService = new LLMService();
         this.initializeRepository();
     }
 
@@ -86,4 +89,34 @@ export class AIController {
             next(error);
         }
     }
+
+    public analyzeEmail = async (req: Request, res: Response) => {
+        try {
+            const { email } = req.body;
+            const analysis = await this.llmService.analyzeEmail(email);
+            res.json({ success: true, data: analysis });
+        } catch (error) {
+            throw new AppError('Failed to analyze email', 500);
+        }
+    };
+
+    public suggestSubject = async (req: Request, res: Response) => {
+        try {
+            const { email } = req.body;
+            const subject = await this.llmService.suggestSubject(email);
+            res.json({ success: true, data: { subject } });
+        } catch (error) {
+            throw new AppError('Failed to suggest subject', 500);
+        }
+    };
+
+    public completeText = async (req: Request, res: Response) => {
+        try {
+            const { text, context } = req.body;
+            const completion = await this.llmService.completeText(text, context);
+            res.json({ success: true, data: { completion } });
+        } catch (error) {
+            throw new AppError('Failed to complete text', 500);
+        }
+    };
 } 

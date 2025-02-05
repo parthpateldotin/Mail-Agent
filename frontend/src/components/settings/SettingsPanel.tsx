@@ -19,7 +19,9 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
-  IconButton
+  IconButton,
+  Chip,
+  Stack
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -348,21 +350,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </Button>
             </Box>
 
-            <List>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
               {aiSettings.customCategories.map((category) => (
-                <ListItem key={category}>
-                  <ListItemText primary={category} />
-                  <ListItemSecondaryAction>
-                    <IconButton
-                      edge="end"
-                      onClick={() => handleRemoveCategory(category)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
+                <Chip
+                  key={category}
+                  label={category}
+                  onDelete={() => handleRemoveCategory(category)}
+                  deleteIcon={<DeleteIcon />}
+                />
               ))}
-            </List>
+            </Stack>
 
             <Button
               variant="contained"

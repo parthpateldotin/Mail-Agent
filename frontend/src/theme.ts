@@ -1,13 +1,17 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, ThemeOptions } from '@mui/material/styles';
 
-export const theme = createTheme({
+const themeOptions: ThemeOptions = {
   palette: {
     mode: 'light',
     primary: {
       main: '#1976d2',
+      light: '#42a5f5',
+      dark: '#1565c0',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#9c27b0',
+      light: '#ba68c8',
+      dark: '#7b1fa2',
     },
     background: {
       default: '#f5f5f5',
@@ -15,32 +19,60 @@ export const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    h1: {
+      fontSize: '2.5rem',
+      fontWeight: 500,
+    },
+    h2: {
+      fontSize: '2rem',
+      fontWeight: 500,
+    },
+    h3: {
+      fontSize: '1.75rem',
+      fontWeight: 500,
+    },
+    h4: {
+      fontSize: '1.5rem',
+      fontWeight: 500,
+    },
+    h5: {
+      fontSize: '1.25rem',
+      fontWeight: 500,
+    },
+    h6: {
+      fontSize: '1rem',
+      fontWeight: 500,
+    },
+  },
+  shape: {
+    borderRadius: 12,
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
           textTransform: 'none',
+          borderRadius: 12,
         },
       },
     },
-    MuiListItem: {
+    MuiCard: {
       styleOverrides: {
         root: {
-          '&.Mui-selected': {
-            backgroundColor: 'rgba(25, 118, 210, 0.08)',
-          },
+          borderRadius: 12,
+          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
         },
       },
     },
   },
-}); 
+};
+
+export const theme = createTheme(themeOptions); 

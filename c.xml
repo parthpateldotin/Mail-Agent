@@ -1,0 +1,108 @@
+<mxfile host="app.diagrams.net" modified="2025-02-05T04:40:00.000Z" agent="ChatGPT" etag="DetailedUMLMailAgent" version="14.6.13" type="device">
+  <diagram id="DetailedUML" name="MailAgent Use Case Diagram">
+    <mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="900">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <!-- System Boundary -->
+        <mxCell id="100" value="MailAgent System" style="shape=rectangle;strokeColor=#000000;fillColor=none;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="100" width="600" height="600" as="geometry"/>
+        </mxCell>
+        <!-- Actors -->
+        <mxCell id="A1" value="User" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="250" width="50" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="A2" value="Admin" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="400" width="50" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="A3" value="External Mail Service" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="300" width="50" height="100" as="geometry"/>
+        </mxCell>
+        <!-- Use Cases inside System Boundary -->
+        <!-- UC1: Login/Logout -->
+        <mxCell id="UC1" value="Login/Logout" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="100" y="50" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC2: Compose Email -->
+        <mxCell id="UC2" value="Compose Email" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="300" y="50" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC3: Send Email -->
+        <mxCell id="UC3" value="Send Email" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="100" y="150" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC4: Receive Email -->
+        <mxCell id="UC4" value="Receive Email" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="300" y="150" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC5: Manage Inbox -->
+        <mxCell id="UC5" value="Manage Inbox" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="220" y="250" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC6: Manage Contacts -->
+        <mxCell id="UC6" value="Manage Contacts" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="100" y="350" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC7: Configure Account Settings -->
+        <mxCell id="UC7" value="Configure Account Settings" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="300" y="350" width="180" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC8: Search Emails -->
+        <mxCell id="UC8" value="Search Emails" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="100" y="450" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC9: View Email Details -->
+        <mxCell id="UC9" value="View Email Details" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="300" y="450" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <!-- UC10: Handle Attachments -->
+        <mxCell id="UC10" value="Handle Attachments" style="ellipse;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;" vertex="1" parent="100">
+          <mxGeometry x="220" y="550" width="140" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Edges: Actor A1 (User) connections -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC2" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC3" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC5" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC8" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC9" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A1" target="UC10" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Edges: Actor A2 (Admin) connections -->
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A2" target="UC7" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A2" target="UC6" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Edges: Actor A3 (External Mail Service) connections -->
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A3" target="UC3" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;strokeColor=#000000;" edge="1" source="A3" target="UC4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

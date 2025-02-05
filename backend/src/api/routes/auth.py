@@ -1,6 +1,6 @@
 """Authentication routes."""
 from datetime import timedelta
-from typing import Any
+from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -10,7 +10,9 @@ from src.api.dependencies.database import get_db
 from src.core.config import settings
 from src.core.security import create_access_token, create_refresh_token
 from src.schemas.token import Token
+from src.schemas.auth import UserCreate, User, UserResponse
 from src.services.users import UserService
+from src.services.auth.auth_service import AuthService
 
 router = APIRouter()
 
@@ -53,7 +55,7 @@ async def login(
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
     refresh_token: str,
-    db: Annotated[get_db, Depends()],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Token:
     """Refresh access token."""
     try:

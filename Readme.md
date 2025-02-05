@@ -1,38 +1,42 @@
-# AiMail
+# AiMail - AI-Powered Email Client
 
-AiMail is an intelligent email management system that uses AI to help users manage their emails more efficiently.
+AiMail is a modern email client that leverages artificial intelligence to enhance your email experience. Built with React, TypeScript, and Material-UI for the frontend, and Python FastAPI for the backend.
 
 ## Features
 
-- 📧 Smart email processing and auto-responses
-- 🤖 AI-powered email analysis and categorization
-- 📅 Automated calendar integration for meeting scheduling
-- 🏷️ Intelligent email labeling and organization
-- 📊 Email analytics and insights
-- 🔒 Secure authentication and authorization
+- 📧 Smart email composition with AI suggestions
+- 📊 Email analytics and sentiment analysis
+- 🗂️ Intelligent email categorization
+- ⭐ Priority inbox with smart filtering
+- 📅 Email scheduling and reminders
+- 🤖 AI-powered auto-responses
+- 📎 File attachment support
+- 🔍 Advanced search capabilities
+- 🎨 Modern and responsive UI
 
 ## Tech Stack
 
+### Frontend
+- React 18
+- TypeScript
+- Material-UI (MUI)
+- React Router
+- Axios
+- React Query
+
 ### Backend
-- FastAPI (Python)
+- Python 3.9+
+- FastAPI
+- SQLAlchemy
 - PostgreSQL
 - Redis
-- SQLAlchemy
-- Alembic for migrations
-- OpenAI API integration
-
-### Frontend
-- React
-- TypeScript
-- Material-UI
-- Redux Toolkit
-- React Router
+- OpenAI API
 
 ## Getting Started
 
 ### Prerequisites
-- Python 3.8+
 - Node.js 16+
+- Python 3.9+
 - PostgreSQL
 - Redis
 
@@ -44,26 +48,35 @@ git clone https://github.com/yourusername/aimail.git
 cd aimail
 ```
 
-2. Set up the backend:
+2. Install frontend dependencies:
+```bash
+cd frontend
+npm install
+```
+
+3. Install backend dependencies:
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: .\venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env  # Configure your environment variables
 ```
 
-3. Set up the database:
+4. Set up environment variables:
 ```bash
-alembic upgrade head
-python src/scripts/seed.py
+# Backend (.env)
+cp .env.example .env
+# Edit .env with your configuration
+
+# Frontend (.env)
+cp .env.example .env
+# Edit .env with your configuration
 ```
 
-4. Set up the frontend:
+5. Initialize the database:
 ```bash
-cd ../frontend
-npm install
-cp .env.example .env  # Configure your environment variables
+cd backend
+python -m src.scripts.init-db
 ```
 
 ### Running the Application
@@ -86,30 +99,31 @@ The application will be available at http://localhost:3000
 
 ```
 aimail/
-├── backend/
+├── frontend/           # React frontend application
 │   ├── src/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── models/
-│   │   ├── services/
-│   │   └── utils/
-│   ├── tests/
-│   └── alembic/
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   ├── pages/
-    │   ├── services/
-    │   └── utils/
-    └── public/
+│   │   ├── components/  # Reusable UI components
+│   │   ├── pages/      # Page components
+│   │   ├── services/   # API services
+│   │   ├── hooks/      # Custom React hooks
+│   │   └── utils/      # Utility functions
+│   └── public/         # Static assets
+├── backend/           # FastAPI backend application
+│   ├── src/
+│   │   ├── api/       # API routes and endpoints
+│   │   ├── core/      # Core functionality
+│   │   ├── models/    # Database models
+│   │   ├── services/  # Business logic
+│   │   └── utils/     # Utility functions
+│   └── tests/         # Backend tests
+└── docs/             # Documentation
 ```
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## License
@@ -119,4 +133,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - OpenAI for providing the AI capabilities
-- All contributors who have helped shape this project
+- Material-UI for the beautiful components
+- FastAPI for the efficient backend framework

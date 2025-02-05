@@ -1,17 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: string;
   email: string;
   name: string;
-}
-
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  loading: boolean;
-  error: string | null;
 }
 
 interface LoginCredentials {
@@ -23,50 +16,95 @@ interface RegisterData extends LoginCredentials {
   name: string;
 }
 
-interface AuthResponse {
-  user: User;
-  token: string;
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  loading: boolean;
+  error: string | null;
 }
 
 export const useAuth = () => {
+  const navigate = useNavigate();
   const [state, setState] = useState<AuthState>({
     user: null,
     token: localStorage.getItem('token'),
     loading: true,
-    error: null,
+    error: null
   });
 
-  const setAuthHeader = useCallback((token: string | null) => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
-  }, []);
-
   useEffect(() => {
-    if (state.token) {
-      setAuthHeader(state.token);
-    }
-  }, [state.token, setAuthHeader]);
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const user = await response.json();
+            setState(prev => ({
+              ...prev,
+              user,
+              loading: false
+            }));
+          } else {
+            localStorage.removeItem('token');
+            setState(prev => ({
+              ...prev,
+              token: null,
+              loading: false
+            }));
+          }
+        } catch (error) {
+          setState(prev => ({
+            ...prev,
+            error: 'Failed to authenticate',
+            loading: false
+          }));
+        }
+      } else {
+        setState(prev => ({
+          ...prev,
+          loading: false
+        }));
+      }
+    };
+
+    initAuth();
+  }, []);
 
   const login = async (credentials: LoginCredentials) => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      const { data } = await axios.post<AuthResponse>('/api/auth/login', credentials);
-      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(credentials)
+      });
+
+      if (!response.ok) {
+        throw new Error('Invalid credentials');
+      }
+
+      const data = await response.json();
       localStorage.setItem('token', data.token);
-      setState({
+      
+      setState(prev => ({
+        ...prev,
         user: data.user,
         token: data.token,
-        loading: false,
-        error: null,
-      });
+        error: null
+      }));
+
+      return data;
     } catch (error) {
       setState(prev => ({
         ...prev,
-        loading: false,
-        error: 'Invalid credentials',
+        error: 'Failed to login'
       }));
       throw error;
     }
@@ -74,21 +112,33 @@ export const useAuth = () => {
 
   const register = async (data: RegisterData) => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      const response = await axios.post<AuthResponse>('/api/auth/register', data);
-      
-      localStorage.setItem('token', response.data.token);
-      setState({
-        user: response.data.user,
-        token: response.data.token,
-        loading: false,
-        error: null,
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
       });
+
+      if (!response.ok) {
+        throw new Error('Registration failed');
+      }
+
+      const result = await response.json();
+      localStorage.setItem('token', result.token);
+      
+      setState(prev => ({
+        ...prev,
+        user: result.user,
+        token: result.token,
+        error: null
+      }));
+
+      return result;
     } catch (error) {
       setState(prev => ({
         ...prev,
-        loading: false,
-        error: 'Registration failed',
+        error: 'Failed to register'
       }));
       throw error;
     }
@@ -100,40 +150,10 @@ export const useAuth = () => {
       user: null,
       token: null,
       loading: false,
-      error: null,
+      error: null
     });
+    navigate('/login');
   };
-
-  const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setState(prev => ({ ...prev, loading: false }));
-      return;
-    }
-
-    try {
-      setAuthHeader(token);
-      const { data } = await axios.get<User>('/api/auth/me');
-      setState({
-        user: data,
-        token,
-        loading: false,
-        error: null,
-      });
-    } catch (error) {
-      localStorage.removeItem('token');
-      setState({
-        user: null,
-        token: null,
-        loading: false,
-        error: 'Session expired',
-      });
-    }
-  }, [setAuthHeader]);
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
 
   return {
     user: state.user,
@@ -142,7 +162,6 @@ export const useAuth = () => {
     error: state.error,
     login,
     register,
-    logout,
-    checkAuth,
+    logout
   };
 }; 

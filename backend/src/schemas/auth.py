@@ -30,6 +30,19 @@ class UserCreate(BaseModel):
     is_superuser: bool = False
 
 
+class User(BaseModel):
+    """User schema."""
+    id: str
+    email: EmailStr
+    full_name: str
+    is_active: bool = True
+    is_superuser: bool = False
+
+    class Config:
+        """Pydantic config."""
+        from_attributes = True
+
+
 class UserResponse(BaseModel):
     """User response schema."""
     id: str

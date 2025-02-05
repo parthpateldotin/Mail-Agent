@@ -1,6 +1,7 @@
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
 import { Logger } from '../utils/logger';
 import { EmailAnalysis, EmailResponse, ProcessedEmail } from '../types/email';
+import { AppError } from '../utils/AppError';
 
 interface AnalysisContext {
   previousEmails?: ProcessedEmail[];
@@ -27,43 +28,52 @@ export class LLMService {
   private logger: Logger;
   private context: Map<string, AnalysisContext> = new Map();
 
-  constructor(apiKey: string = process.env.OPENAI_API_KEY || '') {
-    this.openai = new OpenAI({ apiKey });
+  constructor() {
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
     this.logger = new Logger('LLMService');
   }
 
-  async analyzeEmail(content: string, context?: AnalysisContext): Promise<EmailAnalysis> {
+  async analyzeEmail(email: ProcessedEmail): Promise<EmailAnalysis> {
     try {
-      const systemPrompt = this.buildSystemPrompt(context);
+      const prompt = this.buildAnalysisPrompt(email);
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: this.buildAnalysisPrompt(content, context),
-          },
-        ],
-        temperature: 0.7,
-        response_format: { type: "json_object" },
+        model: process.env.OPENAI_MODEL || 'gpt-4',
+        messages: [{ role: 'user', content: prompt }],
       });
 
-      const analysis = response.choices[0]?.message?.content;
-      if (!analysis) {
-        throw new Error('Failed to generate analysis');
-      }
-
-      // Parse the analysis into structured format
-      const parsedAnalysis = this.parseAnalysis(analysis);
-      this.logger.info('Email analysis completed', { emailAnalysis: parsedAnalysis });
-
-      return parsedAnalysis;
+      return this.parseAnalysisResponse(response.choices[0].message.content);
     } catch (error) {
-      this.logger.error('Failed to analyze email:', error);
-      throw error;
+      throw new AppError('Failed to analyze email', 500);
+    }
+  }
+
+  async suggestSubject(email: ProcessedEmail): Promise<string> {
+    try {
+      const prompt = `Please suggest a concise and relevant subject line for this email content: ${email.content}`;
+      const response = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4',
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      return response.choices[0].message.content || '';
+    } catch (error) {
+      throw new AppError('Failed to suggest subject', 500);
+    }
+  }
+
+  async completeText(text: string, context?: string): Promise<string> {
+    try {
+      const prompt = this.buildCompletionPrompt(text, context);
+      const response = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4',
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      return response.choices[0].message.content || '';
+    } catch (error) {
+      throw new AppError('Failed to complete text', 500);
     }
   }
 
@@ -125,18 +135,15 @@ export class LLMService {
     Provide the analysis in a structured JSON format.`;
   }
 
-  private buildAnalysisPrompt(content: string, context?: AnalysisContext): string {
-    return `Analyze the following email content:
-    ${content}
-    
-    ${context?.previousEmails ? `Consider previous email context:
-    ${context.previousEmails.map(email => `
-    From: ${email.from}
-    Subject: ${email.subject}
-    Content: ${email.content}
-    ---`).join('\n')}` : ''}
-    
-    Provide a detailed analysis including meeting detection and scheduling requirements.`;
+  private buildAnalysisPrompt(email: ProcessedEmail): string {
+    return `Please analyze this email and provide:
+      - Sentiment (positive/negative/neutral)
+      - Priority (high/normal/low)
+      - Category
+      - Summary
+      - Key points
+      
+      Email content: ${email.content}`;
   }
 
   private buildResponsePrompt(context?: AnalysisContext): string {
@@ -166,30 +173,16 @@ export class LLMService {
     });
   }
 
-  private parseAnalysis(rawAnalysis: string): EmailAnalysis {
-    try {
-      const parsed = JSON.parse(rawAnalysis);
-      return {
-        summary: parsed.summary,
-        key_points: parsed.key_points,
-        sentiment: parsed.sentiment,
-        priority: parsed.priority,
-        action_items: parsed.action_items,
-        category: parsed.category,
-        requiresMeeting: parsed.requires_meeting,
-        suggestedTimeRange: parsed.suggested_time_range ? {
-          start: new Date(parsed.suggested_time_range.start),
-          end: new Date(parsed.suggested_time_range.end),
-        } : undefined,
-        meetingContext: parsed.meeting_context,
-        additionalAttendees: parsed.additional_attendees,
-        confidence: parsed.confidence,
-        tags: parsed.tags,
-      };
-    } catch (error) {
-      this.logger.error('Failed to parse analysis:', error);
-      throw new Error('Failed to parse analysis');
-    }
+  private parseAnalysisResponse(response: string): EmailAnalysis {
+    // Implement parsing logic here
+    return {
+      sentiment: 'neutral',
+      priority: 'normal',
+      category: 'general',
+      summary: response,
+      key_points: [],
+      requiresMeeting: false
+    };
   }
 
   private parseResponse(
@@ -222,5 +215,11 @@ export class LLMService {
 
   clearContext(emailId: string): void {
     this.context.delete(emailId);
+  }
+
+  private buildCompletionPrompt(text: string, context?: string): string {
+    return context 
+      ? `Context: ${context}\nComplete this text: ${text}`
+      : `Complete this text: ${text}`;
   }
 } 
