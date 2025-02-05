@@ -1,5 +1,5 @@
 export interface EmailAnalytics {
-  sentiment: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
   priority: 'high' | 'normal' | 'low';
   category: string;
   summary: string;
@@ -14,12 +14,12 @@ export interface EmailMetadata {
 
 export interface EmailAttachment {
   filename: string;
-  content: Buffer;
+  content: string | ArrayBuffer;
   contentType: string;
 }
 
 export interface EmailAnalysis {
-  sentiment: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
   priority: 'high' | 'normal' | 'low';
   category: string;
   summary: string;
@@ -49,7 +49,6 @@ export interface EmailResponse {
   subject: string;
   body: string;
   analytics: EmailAnalytics;
-  metadata?: EmailMetadata;
 }
 
 export interface EmailSearchParams {

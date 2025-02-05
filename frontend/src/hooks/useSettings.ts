@@ -1,114 +1,89 @@
 import { useState, useEffect } from 'react';
-import { EmailSettings, AISettings } from '../components/settings/SettingsPanel';
+import axios from 'axios';
+import { AppError } from '../utils/AppError';
 
-const defaultEmailSettings: EmailSettings = {
-  signature: '',
-  replyTo: '',
-  defaultFolder: 'inbox',
-  autoSaveDrafts: true,
-  sendReadReceipts: false,
-  useThreadedView: true,
-  showNotifications: true
-};
+export interface EmailSettings {
+  signature: string;
+  replyTo: string;
+  defaultFolder: string;
+  autoSaveDrafts: boolean;
+  sendReadReceipts: boolean;
+  useThreadedView: boolean;
+  showNotifications: boolean;
+}
 
-const defaultAISettings: AISettings = {
-  enableSmartReply: true,
-  enableAnalytics: true,
-  enableSpamDetection: true,
-  defaultReplyStyle: 'formal',
-  languagePreference: 'en',
-  customCategories: ['Work', 'Personal', 'Shopping', 'Travel', 'Finance']
-};
+export interface AISettings {
+  enableSmartReply: boolean;
+  enableAnalytics: boolean;
+  enableSpamDetection: boolean;
+  defaultReplyStyle: 'formal' | 'casual' | 'friendly';
+  languagePreference: string;
+  customCategories: string[];
+}
+
+interface Settings {
+  email: EmailSettings;
+  ai: AISettings;
+}
 
 export const useSettings = () => {
-  const [emailSettings, setEmailSettings] = useState<EmailSettings>(defaultEmailSettings);
-  const [aiSettings, setAISettings] = useState<AISettings>(defaultAISettings);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [emailResponse, aiResponse] = await Promise.all([
-          fetch('/api/settings/email'),
-          fetch('/api/settings/ai')
-        ]);
-
-        if (!emailResponse.ok || !aiResponse.ok) {
-          throw new Error('Failed to load settings');
-        }
-
-        const [emailData, aiData] = await Promise.all([
-          emailResponse.json(),
-          aiResponse.json()
-        ]);
-
-        setEmailSettings(emailData);
-        setAISettings(aiData);
-      } catch (error) {
-        console.error('Failed to load settings:', error);
-        setError('Failed to load settings. Using default settings.');
-        setEmailSettings(defaultEmailSettings);
-        setAISettings(defaultAISettings);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSettings();
-  }, []);
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get<Settings>('/api/settings');
+      setSettings(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load settings');
+      console.error('Error loading settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateEmailSettings = async (newSettings: EmailSettings) => {
     try {
-      const response = await fetch('/api/settings/email', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newSettings),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update email settings');
-      }
-
-      setEmailSettings(newSettings);
-    } catch (error) {
-      console.error('Failed to update email settings:', error);
-      throw error;
+      setLoading(true);
+      const response = await axios.patch<Settings>('/api/settings/email', newSettings);
+      setSettings(prev => prev ? { ...prev, email: response.data.email } : response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to update email settings');
+      console.error('Error updating email settings:', err);
+      throw new AppError('Failed to update email settings', 500);
+    } finally {
+      setLoading(false);
     }
   };
 
   const updateAISettings = async (newSettings: AISettings) => {
     try {
-      const response = await fetch('/api/settings/ai', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newSettings),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update AI settings');
-      }
-
-      setAISettings(newSettings);
-    } catch (error) {
-      console.error('Failed to update AI settings:', error);
-      throw error;
+      setLoading(true);
+      const response = await axios.patch<Settings>('/api/settings/ai', newSettings);
+      setSettings(prev => prev ? { ...prev, ai: response.data.ai } : response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to update AI settings');
+      console.error('Error updating AI settings:', err);
+      throw new AppError('Failed to update AI settings', 500);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
   return {
-    emailSettings,
-    aiSettings,
-    updateEmailSettings,
-    updateAISettings,
+    settings,
     loading,
-    error
+    error,
+    updateEmailSettings,
+    updateAISettings
   };
 }; 
